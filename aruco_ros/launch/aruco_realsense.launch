@@ -10,7 +10,7 @@
     <arg name="camera_image_remap"    default="/camera/color/image_raw"/>
 
 
-    <!-- Including the RealSense camera launch file only if camera_sim is false -->
+    <!-- Including the RealSense camera launch file only if camera_sim is false. Test Comment -->
     <include unless="$(arg camera_sim)" file="$(find realsense2_camera)/launch/rs_camera.launch">
         <!-- Optional: Pass arguments to configure the camera launch file -->
         <arg name="enable_depth" value="true"/>   <!-- Enable depth stream -->
