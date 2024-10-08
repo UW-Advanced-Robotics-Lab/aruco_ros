@@ -16,3 +16,5 @@ cv2.imwrite(f"aruco_marker_{marker_id}.png", marker_image)
 cv2.imshow(f"Aruco Marker ID {marker_id}", marker_image)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
+
+#Test Commit
