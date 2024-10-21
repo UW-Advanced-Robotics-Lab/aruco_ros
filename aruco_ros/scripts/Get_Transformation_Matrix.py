@@ -2,6 +2,9 @@ import rospy
 import tf2_ros
 import numpy as np
 from geometry_msgs.msg import TransformStamped
+import tf.transformations
+import cv2
+
 
 def get_transform_matrix(base_frame, end_effector_frame):
     rospy.init_node('get_transform', anonymous=True)
@@ -29,9 +32,34 @@ def get_transform_matrix(base_frame, end_effector_frame):
 
     return transform_matrix, rotation_matrix
 
+def calibrate_eye_hand(R_gripper2base, t_gripper2base, R_target2cam, t_target2cam, eye_to_hand=True):
+
+    if eye_to_hand:
+        # change coordinates from gripper2base to base2gripper
+        R_base2gripper, t_base2gripper = [], []
+        for R, t in zip(R_gripper2base, t_gripper2base):
+            R_b2g = R.T
+            t_b2g = -R_b2g @ t
+            R_base2gripper.append(R_b2g)
+            t_base2gripper.append(t_b2g)
+        
+        # change parameters values
+        R_gripper2base = R_base2gripper
+        t_gripper2base = t_base2gripper
+
+    # calibrate
+    R, t = cv2.calibrateHandEye(
+        R_gripper2base=R_gripper2base,
+        t_gripper2base=t_gripper2base,
+        R_target2cam=R_target2cam,
+        t_target2cam=t_target2cam,
+    )
+
+    return R, t
+
 if __name__ == '__main__':
-    base_frame = "base_link"
-    end_effector_frame = "end_effector_link"
+    base_frame = "uwarl_base_link"
+    end_effector_frame = "front_right_wheel_link"
     transform_matrix, rotation_matrix = get_transform_matrix(base_frame, end_effector_frame)
     print("Transformation Matrix: \n", transform_matrix)
     print("Rotation Matrix: \n", rotation_matrix)
