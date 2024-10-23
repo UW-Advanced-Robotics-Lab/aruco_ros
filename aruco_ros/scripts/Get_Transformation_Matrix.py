@@ -63,3 +63,46 @@ if __name__ == '__main__':
     transform_matrix, rotation_matrix = get_transform_matrix(base_frame, end_effector_frame)
     print("Transformation Matrix: \n", transform_matrix)
     print("Rotation Matrix: \n", rotation_matrix)
+    t_gripper2base = transform_matrix[:3, -1].reshape(3, 1)
+    print(t_gripper2base)
+    R_gripper2base = rotation_matrix
+
+
+
+# Example: Three sets of rotations and translations
+R_gripper2base = [np.array([[1, 0, 0],
+                             [0, 3, 0],
+                             [0, 0, 1]]),
+                  np.array([[0, -1, 0],
+                            [1, 0, 0],
+                            [0, 0, 1]]),
+                  np.array([[0, 1, 0],
+                            [-1, 0, 0],
+                            [0, 0, 1]])]  # Add at least 3 sets
+
+t_gripper2base = [np.array([20, 0, 1]).reshape(3, 1),
+                  np.array([10, 0, 1]).reshape(3, 1),
+                  np.array([30, 0, 2]).reshape(3, 1)]  # Add at least 3 sets
+
+R_target2cam = [np.array([[1, 0, 0],
+                          [0, 1, 0],
+                          [0, 0, 1]]),
+                np.array([[0, -1, 0],
+                          [1, 0, 0],
+                          [0, 0, 1]]),
+                np.array([[0, 1, 0],
+                          [-1, 0, 0],
+                          [0, 0, 1]])]  # Add at least 3 sets
+
+t_target2cam = [np.array([4, 0, 1]).reshape(3, 1),
+                np.array([3, 0, 1]).reshape(3, 1),
+                np.array([5, 0, 1]).reshape(3, 1)]  # Add at least 3 sets
+    
+R, t = cv2.calibrateHandEye(
+        R_gripper2base=R_gripper2base,
+        t_gripper2base=t_gripper2base,
+        R_target2cam=R_target2cam,
+        t_target2cam=t_target2cam,
+    )
+print(R)
+print(t)
