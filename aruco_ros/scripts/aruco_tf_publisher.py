@@ -16,6 +16,8 @@ class ArucoTfPublisher:
         # Camera image and camera info topics
         self.image_topic = rospy.get_param('~image_topic', '/camera/color/image_raw')
         self.camera_info_topic = rospy.get_param('~camera_info_topic', '/camera/color/camera_info')
+        self.camera_info_received = False  # Define a flag in the initialization
+
 
         # Create CvBridge for image conversion
         self.bridge = CvBridge()
@@ -38,11 +40,13 @@ class ArucoTfPublisher:
         self.camera_info_sub = rospy.Subscriber(self.camera_info_topic, CameraInfo, self.camera_info_callback)
 
     def camera_info_callback(self, msg):
-        # Extract the camera matrix and distortion coefficients from CameraInfo message
-        self.camera_matrix = np.array(msg.K).reshape(3, 3)
-        self.dist_coeffs = np.array(msg.D)
+        if not self.camera_info_received:
+            rospy.loginfo("Camera matrix and distortion coefficients received")
+            #self.camera_info_received = True
+            self.camera_matrix = np.array(msg.K).reshape(3, 3)
+            self.dist_coeffs = np.array(msg.D)
 
-        rospy.loginfo("Camera matrix and distortion coefficients received")
+
 
     def image_callback(self, msg):
         # Ensure we have the camera matrix and distortion coefficients
@@ -92,6 +96,9 @@ class ArucoTfPublisher:
             # Optionally, print or log the transformation and rotation matrices
             rospy.loginfo(f"Translation: {tvec}")
             rospy.loginfo(f"Rotation Matrix:\n{rotation_matrix}")
+    # Process the CameraInfo message as usual
+
+    
 
 if __name__ == '__main__':
     try:

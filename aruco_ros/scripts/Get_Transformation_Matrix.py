@@ -5,9 +5,13 @@ from geometry_msgs.msg import TransformStamped
 import tf.transformations
 import cv2
 
+# Initialize storage for transformations
+R_gripper2base = []
+t_gripper2base = []
+R_target2cam = []
+t_target2cam = []
 
 def get_transform_matrix(base_frame, end_effector_frame):
-    rospy.init_node('get_transform', anonymous=True)
     tfBuffer = tf2_ros.Buffer()
     listener = tf2_ros.TransformListener(tfBuffer)
 
@@ -32,22 +36,29 @@ def get_transform_matrix(base_frame, end_effector_frame):
 
     return transform_matrix, rotation_matrix
 
-def calibrate_eye_hand(R_gripper2base, t_gripper2base, R_target2cam, t_target2cam, eye_to_hand=True):
+def transform_callback(msg):
+    # Collect R_target2cam and t_target2cam from the message
+    translation = [msg.transform.translation.x, msg.transform.translation.y, msg.transform.translation.z]
+    rotation = [msg.transform.rotation.x, msg.transform.rotation.y, msg.transform.rotation.z, msg.transform.rotation.w]
+    
+    rotation_matrix = tf.transformations.quaternion_matrix(rotation)[:3, :3]
+    
+    # Append R_target2cam and t_target2cam
+    R_target2cam.append(rotation_matrix)
+    t_target2cam.append(np.array(translation).reshape(3, 1))
+    
+    # Collect R_gripper2base and t_gripper2base using get_transform_matrix
+    base_frame = "uwarl_base_link"
+    end_effector_frame = "front_right_wheel_link"
+    transform_matrix, rotation_matrix_gripper = get_transform_matrix(base_frame, end_effector_frame)
+    
+    if transform_matrix is not None:
+        # Append R_gripper2base and t_gripper2base
+        R_gripper2base.append(rotation_matrix_gripper)
+        t_gripper2base.append(transform_matrix[:3, -1].reshape(3, 1))
 
-    if eye_to_hand:
-        # change coordinates from gripper2base to base2gripper
-        R_base2gripper, t_base2gripper = [], []
-        for R, t in zip(R_gripper2base, t_gripper2base):
-            R_b2g = R.T
-            t_b2g = -R_b2g @ t
-            R_base2gripper.append(R_b2g)
-            t_base2gripper.append(t_b2g)
-        
-        # change parameters values
-        R_gripper2base = R_base2gripper
-        t_gripper2base = t_base2gripper
-
-    # calibrate
+def calibrate_eye_hand(publisher):
+    # Perform the calibration
     R, t = cv2.calibrateHandEye(
         R_gripper2base=R_gripper2base,
         t_gripper2base=t_gripper2base,
@@ -55,54 +66,43 @@ def calibrate_eye_hand(R_gripper2base, t_gripper2base, R_target2cam, t_target2ca
         t_target2cam=t_target2cam,
     )
 
-    return R, t
+    # Prepare and publish the calibration transform as a TransformStamped message
+    transform_msg = TransformStamped()
+    transform_msg.header.stamp = rospy.Time.now()
+    transform_msg.header.frame_id = "camera_optical_frame"
+    transform_msg.child_frame_id = "hand_eye_calibration_frame"
+    
+    # Convert rotation matrix to quaternion
+    quat = tf.transformations.quaternion_from_matrix(np.vstack((np.hstack((R, [[0], [0], [0]])), [[0, 0, 0, 1]])))
+    transform_msg.transform.rotation.x = quat[0]
+    transform_msg.transform.rotation.y = quat[1]
+    transform_msg.transform.rotation.z = quat[2]
+    transform_msg.transform.rotation.w = quat[3]
+
+    # Set translation
+    transform_msg.transform.translation.x = t[0]
+    transform_msg.transform.translation.y = t[1]
+    transform_msg.transform.translation.z = t[2]
+    
+    # Publish the message
+    publisher.publish(transform_msg)
+    rospy.loginfo("Published Hand-Eye Calibration Matrix")
 
 if __name__ == '__main__':
-    base_frame = "uwarl_base_link"
-    end_effector_frame = "front_right_wheel_link"
-    transform_matrix, rotation_matrix = get_transform_matrix(base_frame, end_effector_frame)
-    print("Transformation Matrix: \n", transform_matrix)
-    print("Rotation Matrix: \n", rotation_matrix)
-    t_gripper2base = transform_matrix[:3, -1].reshape(3, 1)
-    print(t_gripper2base)
-    R_gripper2base = rotation_matrix
-
-
-
-# Example: Three sets of rotations and translations
-R_gripper2base = [np.array([[1, 0, 0],
-                             [0, 3, 0],
-                             [0, 0, 1]]),
-                  np.array([[0, -1, 0],
-                            [1, 0, 0],
-                            [0, 0, 1]]),
-                  np.array([[0, 1, 0],
-                            [-1, 0, 0],
-                            [0, 0, 1]])]  # Add at least 3 sets
-
-t_gripper2base = [np.array([20, 0, 1]).reshape(3, 1),
-                  np.array([10, 0, 1]).reshape(3, 1),
-                  np.array([30, 0, 2]).reshape(3, 1)]  # Add at least 3 sets
-
-R_target2cam = [np.array([[1, 0, 0],
-                          [0, 1, 0],
-                          [0, 0, 1]]),
-                np.array([[0, -1, 0],
-                          [1, 0, 0],
-                          [0, 0, 1]]),
-                np.array([[0, 1, 0],
-                          [-1, 0, 0],
-                          [0, 0, 1]])]  # Add at least 3 sets
-
-t_target2cam = [np.array([4, 0, 1]).reshape(3, 1),
-                np.array([3, 0, 1]).reshape(3, 1),
-                np.array([5, 0, 1]).reshape(3, 1)]  # Add at least 3 sets
+    rospy.init_node('calibration_node', anonymous=True)
     
-R, t = cv2.calibrateHandEye(
-        R_gripper2base=R_gripper2base,
-        t_gripper2base=t_gripper2base,
-        R_target2cam=R_target2cam,
-        t_target2cam=t_target2cam,
-    )
-print(R)
-print(t)
+    # Publisher for the hand-eye calibration matrix
+    calibration_publisher = rospy.Publisher('/hand_eye_calibration_matrix', TransformStamped, queue_size=10)
+    
+    # Subscribe to the /arcuco_single/transform topic
+    rospy.Subscriber('/arcuco_single/transform', TransformStamped, transform_callback)
+    
+    # Wait for a certain number of transformations to be collected
+    rate = rospy.Rate(1)
+    while not rospy.is_shutdown():
+        if len(R_gripper2base) >= 3:  # Wait until at least 3 data points are collected
+            calibrate_eye_hand(calibration_publisher)
+            break
+        rate.sleep()
+    
+    rospy.spin()
