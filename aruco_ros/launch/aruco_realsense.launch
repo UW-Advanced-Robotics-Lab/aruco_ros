@@ -8,6 +8,7 @@
     <arg name="camera_sim"      default="false" />
     <arg name="camera_info_remap"    default="/camera/color/camera_info"/>
     <arg name="camera_image_remap"    default="/camera/color/image_raw"/>
+    <arg name="calibration"      default="true" />
 
 
     <!-- Including the RealSense camera launch file only if camera_sim is false. Test Comment -->
@@ -39,5 +40,11 @@
         <param name="image_topic" value="/camera/color/image_raw" />
         <param name="camera_info_topic" value="/camera/color/camera_info" />
     </node>
+
+    <group if="$(arg calibration)">
+        <node pkg="aruco_ros" type="Calibration_Node.py" name="calibration_node" output="screen">
+            <!-- Add any additional parameters here if needed -->
+        </node>
+    </group>
 
 </launch>

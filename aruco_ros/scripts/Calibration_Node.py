@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import rospy
 import tf2_ros
 import numpy as np
@@ -17,16 +19,18 @@ class CalibrationNode:
         self.latest_wam_pose = None
         
         # Initialize node
-        rospy.init_node('calibration_node', anonymous=True)
+        rospy.init_node('calibration_node')
         
         # Publisher for the hand-eye calibration matrix
         self.calibration_publisher = rospy.Publisher('/hand_eye_calibration_matrix', TransformStamped, queue_size=10)
         
         # Subscriber to the /arcuco_single/transform topic for camera-to-target transformations
-        rospy.Subscriber('/arcuco_single/transform', TransformStamped, self.transform_callback)
+        rospy.Subscriber('/aruco_single/transform', TransformStamped, self.transform_callback)
         
         # Subscriber to the /wam/pose topic to update the latest WAM pose
         rospy.Subscriber('/wam/pose', PoseStamped, self.wam_pose_callback)
+
+        rospy.loginfo("Done initializing")
         
     def wam_pose_callback(self, msg):
         """Update the latest WAM pose."""
@@ -34,6 +38,8 @@ class CalibrationNode:
 
     def transform_callback(self, msg):
         """Process a new ArUco transform message along with the latest WAM pose."""
+        rospy.loginfo("Aruco Transform Found")
+
         if self.latest_wam_pose is None:
             rospy.logwarn("No WAM pose received yet.")
             return

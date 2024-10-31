@@ -14,8 +14,8 @@ class ArucoTfPublisher:
         rospy.init_node('aruco_tf_publisher', anonymous=True)
 
         # Camera image and camera info topics
-        self.image_topic = rospy.get_param('~image_topic', '/camera/color/image_raw')
-        self.camera_info_topic = rospy.get_param('~camera_info_topic', '/camera/color/camera_info')
+        self.image_topic = rospy.get_param('~image_topic', '/cam_EE/color/image_raw')
+        self.camera_info_topic = rospy.get_param('~camera_info_topic', '/cam_EE/color/camera_info')
         self.camera_info_received = False  # Define a flag in the initialization
 
 
